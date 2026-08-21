@@ -1,0 +1,4 @@
+export UV_CACHE_DIR=/goinfre/uv_cache
+export UV_PROJECT_ENVIRONMENT=/goinfre/call_me_maybe/.venv
+export HF_HOME=/goinfre/huggingface
+export HF_HUB_CACHE=/goinfre/huggingface/hub

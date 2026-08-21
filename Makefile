@@ -2,6 +2,8 @@ install:
 
 
 run:
+	chmod +x run.sh
+	./run.sh
 
 debug:
 
