@@ -2,8 +2,8 @@ install:
 
 
 run:
-	chmod +x run.sh
-	./run.sh
+	clear
+	uv run python -m src
 
 debug:
 
