@@ -1,5 +1,5 @@
 install:
-
+	uv add ./llm_sdk 
 
 run:
 	clear
