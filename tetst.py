@@ -1,0 +1,13 @@
+import json
+s = """  {
+    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
+    "name": "fn_substitute_string_with_regex",
+    "parameters": {
+        "source_string": "The cat sat on the mat with another cat",
+        "regex": "cat",
+        "replacement": "dog"
+    }
+} f"""
+a = json.loads(s)
+
+print(a)
