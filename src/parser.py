@@ -28,7 +28,7 @@ def parser() -> tuple[str, list] | None:
                     data: list = data_loaded
                 for item in data:
                     parser = FunDefModel(**item)
-                    function += str(item) + "\n"
+                    function += f"name: {str(item["name"])}, description: {str(item["description"])}, parameters: {str(item["parameters"])}" + "\n"
             except (JSONDecodeError ) as e:
                 print(f"json forma not valide in 'functions_definition.json': {e}")
                 return None

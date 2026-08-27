@@ -7,6 +7,7 @@ requires-python = ">=3.14"
 dependencies = [
     "llm-sdk",
     "pydantic>=2.13.4",
+    "outlines"
 ]
 
 [project.scripts]

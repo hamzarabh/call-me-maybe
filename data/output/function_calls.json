@@ -16,7 +16,7 @@
     }
   },
   {
-    "prompt": "Greet shrek",
+    "prompt": "Greet Shrek",
     "name": "fn_greet",
     "parameters": {
       "name": "shrek"
@@ -76,12 +76,6 @@
     }
   },
   {
-    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
-    "name": "fn_substitute_string_with_regex",
-    "parameters": {
-      "source_string": "The cat sat on the mat with another cat",
-      "regex": "cat",
-      "replacement": "dog"
-    }
+    "prompt": "The dog sat on the mat with another dog"
   }
 ]
