@@ -53,6 +53,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "llm-sdk" },
+    { name = "numpy" },
     { name = "outlines" },
     { name = "pydantic" },
 ]
@@ -60,6 +61,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "llm-sdk", editable = "llm_sdk" },
+    { name = "numpy" },
     { name = "outlines" },
     { name = "pydantic", specifier = ">=2.13.4" },
 ]

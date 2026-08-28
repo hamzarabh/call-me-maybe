@@ -10,10 +10,6 @@
         "type": "number"
       }
     },
-    "result":{
-      "type":"number",
-      "description":"this result of a + b"
-    },
     "returns": {
       "type": "number"
     }

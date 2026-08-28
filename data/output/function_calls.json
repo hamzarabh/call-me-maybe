@@ -19,14 +19,14 @@
     "prompt": "Greet Shrek",
     "name": "fn_greet",
     "parameters": {
-      "name": "shrek"
+      "name": "Shrek"
     }
   },
   {
-    "prompt": "Greet john",
+    "prompt": "Greet jos",
     "name": "fn_greet",
     "parameters": {
-      "name": "john"
+      "name": "jos"
     }
   },
   {
@@ -58,7 +58,7 @@
     }
   },
   {
-    "prompt": "Replace all numbers in 'Hello 34 I'm 233 years old' with NUMBERS",
+    "prompt": "Replace all numbers in \"Hello 34 I'm 233 years old\" with NUMBERS",
     "name": "fn_substitute_string_with_regex",
     "parameters": {
       "source_string": "Hello 34 I'm 233 years old",
@@ -67,7 +67,7 @@
     }
   },
   {
-    "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
+    "prompt": "Programming is fun",
     "name": "fn_substitute_string_with_regex",
     "parameters": {
       "source_string": "Programming is fun",

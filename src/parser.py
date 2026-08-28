@@ -54,5 +54,5 @@ def parser() -> tuple[str, list] | None:
     except (FileNotFoundError, PermissionError) as e:
         print(f"Error: {e}")
         return None
-    return (function,data)
+    return (data_loaded, function,data)
 parser()
