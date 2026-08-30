@@ -1,13 +1,60 @@
-import json
-s = """  {
-    "prompt": "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'",
-    "name": "fn_substitute_string_with_regex",
-    "parameters": {
-        "source_string": "The cat sat on the mat with another cat",
-        "regex": "cat",
-        "replacement": "dog"
-    }
-} f"""
-a = json.loads(s)
+from lark import Lark, Token
+import re
+import numpy as np
 
-print(a)
+# 1. تعريف قواعد JSON النحوية (EBNF)
+# هنا نحدد أننا نريد object يحتوي على مفاتيح وقيم ديناميكية
+json_grammar = """
+    ?start: object
+    object: LBRACE [pair (COMMA pair)*] RBRACE
+    pair: STRING COLON value
+    value: STRING | NUMBER | object
+    
+    LBRACE: "{"
+    RBRACE: "}"
+    COLON: ":"
+    COMMA: ","
+    STRING: "prompt" | "name" | "parameters"
+    NUMBER: /[0-9]+/
+    
+    %ignore " "
+    %ignore /\\n/
+"""
+
+# 2. تهيئة Lark كمحلل تفاعلي (LALR يتيح التفاعل خطوة بخطوة)
+parser = Lark(json_grammar, parser='lalr', lexer='contextual')
+interactive_parser = parser.parse_interactive()
+
+# 3. كيف تسأل Lark أثناء التوليد (محاكاة داخل حلقة Logits)
+def get_allowed_regexes(interactive_parser, state):
+    """هذه الدالة تجلب الرموز المسموحة وتحولها إلى قواعد Regex"""
+    allowed_terminals = interactive_parser.accepts()
+    regex_patterns = []
+    
+    for terminal in allowed_terminals:
+        if terminal == 'LBRACE':
+            regex_patterns.append(r"{")
+        elif terminal == 'RBRACE':
+            regex_patterns.append(r"}")
+        elif terminal == 'COLON':
+            regex_patterns.append(r":")
+        elif terminal == 'COMMA':
+            regex_patterns.append(r",")
+        elif terminal == 'STRING':
+            regex_patterns.append(r'"[^"]*"')
+        elif terminal == 'NUMBER':
+            regex_patterns.append(r'[0-9]+')
+
+    return regex_patterns
+
+
+rege = get_allowed_regexes(interactive_parser)
+
+print(rege)
+# print(interactive_parser.accepts())   
+
+for token in parser.lex("{"):
+    interactive_parser.feed_token(token)
+rege = get_allowed_regexes(interactive_parser)
+
+print(rege)

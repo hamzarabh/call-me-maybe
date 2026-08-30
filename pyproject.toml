@@ -8,7 +8,9 @@ dependencies = [
     "llm-sdk",
     "pydantic>=2.13.4",
     "outlines",
-    "numpy"
+    "numpy",
+    "lark",
+    "outlines"
 ]
 
 [project.scripts]
