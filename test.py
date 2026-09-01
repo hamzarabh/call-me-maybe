@@ -2,8 +2,6 @@ from lark import Lark, Token
 import re
 import numpy as np
 
-# 1. تعريف قواعد JSON النحوية (EBNF)
-# هنا نحدد أننا نريد object يحتوي على مفاتيح وقيم ديناميكية
 json_grammar = """
     ?start: object
     object: LBRACE [pair (COMMA pair)*] RBRACE
@@ -21,13 +19,10 @@ json_grammar = """
     %ignore /\\n/
 """
 
-# 2. تهيئة Lark كمحلل تفاعلي (LALR يتيح التفاعل خطوة بخطوة)
 parser = Lark(json_grammar, parser='lalr', lexer='contextual')
 interactive_parser = parser.parse_interactive()
 
-# 3. كيف تسأل Lark أثناء التوليد (محاكاة داخل حلقة Logits)
-def get_allowed_regexes(interactive_parser, state):
-    """هذه الدالة تجلب الرموز المسموحة وتحولها إلى قواعد Regex"""
+def get_allowed_regexes(interactive_parser):
     allowed_terminals = interactive_parser.accepts()
     regex_patterns = []
     
@@ -51,9 +46,9 @@ def get_allowed_regexes(interactive_parser, state):
 rege = get_allowed_regexes(interactive_parser)
 
 print(rege)
-# print(interactive_parser.accepts())   
+# print(interactive_parser.accepts())
 
-for token in parser.lex("{"):
+for token in parser.lex("{prompt"):
     interactive_parser.feed_token(token)
 rege = get_allowed_regexes(interactive_parser)
 

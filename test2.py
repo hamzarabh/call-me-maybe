@@ -1,34 +1,15 @@
-import transformers
-from outlines import Generator, from_transformers
-from pydantic import BaseModel
+import json
 
+#  "prompt": "Replace all numbers in \"Hello 34 I'm 233 years old\" with NUMBERS"
+t = """{
+  "name": "fn_substitute_string_with_regex",
+  "prompt": "Replace all numbers in "Hello 34 I'm 233 years old" with NUMBERS",
+  "parameters": {
+    "source_string": "Hello 34 I'm 233 years old",
+    "regex": "([0-9]+)",
+    "replacement": "NUMBERS"
+  }
+}"""
+a = json.loads(t)
 
-class Answer(BaseModel):
-    name: str
-    age: int
-
-
-model_name = "Qwen/Qwen3-0.6B"
-
-hf_model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
-tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
-
-model = from_transformers(
-    hf_model,
-    tokenizer,
-)
-
-generator = Generator(model, Answer)
-
-result = generator(
-    "My name is Hamza and I am 26 years old.",
-    max_new_tokens=50,
-)
-
-print(result)
-
-answer = Answer.model_validate_json(result)
-
-print(answer)
-print(answer.name)
-print(answer.age)
+print(a)

@@ -3,7 +3,7 @@ install:
 
 run:
 	clear
-	uv run python -m src
+	time uv run python -m src
 
 debug:
 
