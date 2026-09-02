@@ -75,10 +75,13 @@ def smart_decode(ids: tuple):
     text = llm.decode(list(ids))
     return text
 
+@lru_cache(maxsize=None)
+def smart_encode(prompt :str):
+    res = llm.encode(prompt)
+    return tuple(res.tolist()[0])
+
 class JsonFsm():
     def __init__(self, jsons, prompt):
-        self.sub_state = 0
-        self.keys_tokens = self.get_ids(['"prompt"'])
         self.jsondif  = jsons[0]
         self.prompt  = prompt
         self.e_start: Tree = Tree()
@@ -116,7 +119,7 @@ class JsonFsm():
         self.e_colon.insert(self.get_ids(":"))
         for func in self.jsondif:
             self.e_value_names.insert(self.get_ids(f'"{func['name']}"'))
-        print(self.prompt)
+        # print(self.prompt)
         self.e_value_promt.insert(self.get_ids(json.dumps(self.prompt)))
         self.e_value_param.insert(self.get_ids("{"))
 
@@ -125,8 +128,8 @@ class JsonFsm():
         self.e_end.insert(self.get_ids("}"))
     def get_ids(self, tokens: str):
         ids_tokens: list = []
-        ids_tokens = llm.encode(tokens).tolist()[0]
-        return ids_tokens
+        ids_tokens = smart_encode(tokens)
+        return list(ids_tokens)
 
     # def get_name_tokens(self, token):
         # if token  == "1":
@@ -148,19 +151,19 @@ class JsonFsm():
         if token == 1:
              return (2,self.e_start.root)
         if token == 2:
-                return (3, self.e_key_name.root)
+                return (3, self.e_key_prompt.root )
         if token == 3:
                 return (4,self.e_colon.root)
         if token == 4:
-                return (5, self.e_value_names.root)
+                return (5, self.e_value_promt.root)
         if token == 5:
              return (6,self.e_coma.root)
         if token == 6:
-                return (7, self.e_key_prompt.root)
+                return (7, self.e_key_name.root)
         if token == 7:
                 return (8,self.e_colon.root)
         if token == 8:
-                return (9, self.e_value_promt.root)
+                return (9, self.e_value_names.root)
         if token == 9:
              return (10, self.e_coma.root)
         if token == 10:
@@ -179,49 +182,81 @@ class JsonFsm():
         while current_node.is_end is False:
                 logits = llm.get_logits_from_input_ids(list_data)
                 np_logits = np.array(logits)
-                np_copy = np_logits.copy()
-                np_copy[:] = -np.inf
-                token = current_node.children.keys()
-                for tok in token:
-                    np_copy[tok] = np_logits[tok]
-                next_id = np.argmax(np_copy).item()
+                allowed = np.fromiter(current_node.children.keys(), dtype=np.int64)
+                # np_copy = np_logits.copy()
+                # np_copy[:] = -np.inf
+                # token = current_node.children.keys()
+                # for tok in token:
+                #     np_copy[tok] = np_logits[tok]
+                next_id = allowed[np.argmax(np_logits[allowed])]
                 list_data.append(next_id)
                 text += smart_decode(tuple([next_id]))
                 current_node = current_node.children[next_id]
                 # print(smart_decode(tuple([next_id])))
         return (text, list_data)
 
-    def gen_param(self,list_data, name):
+    def gen_param(self,list_data, name, textJson):
         text = ""
         parameters = dict()
+        # print("hhhhh",  self.jsondif)
         for obj in self.jsondif:
             if '"'+obj["name"]+'"' == name:
                 parameters = obj["parameters"]
-                # print(parameters.keys())
-        for k, v in parameters.items():
+                # print(name)
+        i = 1
+        for i,(k, v) in enumerate(parameters.items()):
             tree_k = Tree()
             tree_k.insert(self.get_ids(f'"{k}"'))
             t, list_data = self.gen_next_token(list_data, tree_k.root)
-            text += t
-            print("teeeees")
+            textJson += t
+            # print(textJson)
             t, list_data = self.gen_next_token(list_data, self.e_colon.root)
-            text += t
+            textJson += t
+
+            if v["type"] == "string":
+                    tree_cot = Tree()
+                    tree_cot.insert(self.get_ids('"'))
+                    t, list_data = self.gen_next_token(list_data, tree_cot.root)
+                    textJson += t
+                    for _ in range(100):
+                        # print(textJson)
+                        logits = llm.get_logits_from_input_ids(list_data)
+                        np_logits = np.array(logits)
+                        next_id = np.argmax(np_logits).item()
+                        text = smart_decode(tuple([next_id]))
+                        # print(f"({text})")
+                        if '"' in text:
+                            for c in text:
+                                textJson += c
+                                if c == '"' :
+                                    break
+                            if textJson[-1] == '"':
+                                break
+                        list_data.append(next_id)
+                        textJson += text
+            else:
+                for _ in range(100):
+                    logits = llm.get_logits_from_input_ids(list_data)
+                    np_logits = np.array(logits)
+                    next_id = np.argmax(np_logits).item()
+                    text = smart_decode(tuple([next_id]))
+                    if ',' in text or '}' in text:
+                        break
+                    list_data.append(next_id)
+                    textJson += text
+                    # print(textJson)
             # print(f"({text})")
 
 
-            for _ in range(100):
-                logits = llm.get_logits_from_input_ids(list_data)
-                np_logits = np.array(logits)
-                next_id = np.argmax(np_logits).item()
-                list_data.append(next_id)
-                text  += smart_decode(tuple([next_id]))
-                print(text)
-                # print(smart_decode(tuple([next_id])))
-                if text.strip().endswith("}") or text.strip().endswith(",") or text.strip().endswith("}}"):
-                    break
-            if text.strip().endswith("}") or text.strip().endswith("}}"):
-                    break
-        return text
+        
+            if i < len(parameters.items()) - 1 and (not textJson.rstrip().endswith(',')):
+                    t, list_data = self.gen_next_token(list_data, self.e_coma.root)
+                    textJson += t
+        text, list_data = self.gen_next_token(list_data, self.e_end.root)
+        textJson += text
+        textJson = textJson.replace('" ', '"')
+        textJson = textJson.replace(' "', '"')
+        return textJson
                  
             
      
@@ -236,17 +271,17 @@ class JsonFsm():
         while start:
             start , tokens_tree = self.get_tokens(start)
             text, list_data = self.gen_next_token(list_data, tokens_tree)
-            if start == 5:
+            if start == 9:
                 name = text
             json += text
-        print("-----------------------")
-        json += self.gen_param(list_data,name)
-        # if not json.strip().endswith("}}"):
-        #     text, list_data = self.gen_next_token(list_data, self.e_end.root)
-        #     json += text
-        print(json)
+        # print("-----------------------")
+        json = self.gen_param(list_data, name, json)
+        if not json.strip().endswith("}}"):
+            text, list_data = self.gen_next_token(list_data, self.e_end.root)
+            json += text
+        # print(f"=> {json}")
 
-        print("=>",check_json(json))
+        # print("=>",check_json(json))
         return check_json(json)
 
 
@@ -254,14 +289,14 @@ class JsonFsm():
 
 
 
-def generate_json(prompt, llm, li: list, jsons):
+def generate_json(prompt, li: list, jsons):
     response = []
     text = ""
     prompt_3 = f"""{prompt["prompt"]}
 Output:"""
-    tensor_data = llm.encode(prompt_3)
+    tensor_data = list(smart_encode(prompt_3))
     list_data = li.copy()
-    list_data.extend(tensor_data.tolist()[0])
+    list_data.extend(tensor_data)
     fsm = JsonFsm(jsons, prompt["prompt"])
     fsm.init_allowed_tokens()
     return fsm.masked_logits(list_data=list_data)
@@ -270,26 +305,26 @@ def main():
     fun_json, functions_dif, prompts = parser()
     output_list = []
     prompt_1 = f"""
-RULES
-1. Output MUST be valid JSON and nothing else.
-2. Use exact parameter names and types as defined.
-AVAILABLE FUNCTIONS
+FUNCTIONS
     {functions_dif}"""
     prompt_2 = """
 EXAMPLES
 User: What is 5 plus 10?
 Output: {"prompt": "What is 5 plus 10?", "name": "fn_add_numbers", "parameters": {"a": 5.0, "b": 10.0}}
+Very important :
+Check all the definitions before doing anything.
+Choose the appropriate function name for the question.
 CURRENT TASK
 User: 
 """
-    # print(prompt)
+    # print(prompt_1)
     # exit(1)
     prompt = prompt_1 + prompt_2 
-    tensor = llm.encode(prompt)
-    list_ids: list = tensor.tolist()[0]
+    tensor = list(smart_encode(prompt))
+    list_ids: list = tensor
     works = os.cpu_count()
     with ThreadPoolExecutor(max_workers=len(prompts)) as worker:
-        result = worker.map(lambda x: generate_json(x,llm,list_ids, (fun_json,prompts)),prompts)
+        result = worker.map(lambda x: generate_json(x,list_ids, (fun_json,prompts)),prompts)
     pathlib.Path("data/output/").mkdir(parents=True,exist_ok=True)
 
     for res in result:
