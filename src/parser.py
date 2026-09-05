@@ -1,61 +1,73 @@
 import json
 from json import JSONDecodeError
-from typing import  Literal, Any
+from typing import Literal, Any
 from pydantic import BaseModel, ValidationError
 
 
 class ParametersModel(BaseModel):
     type: Literal["string", "number", "integer", "boolean", "array", "object"]
 
-class   FunDefModel(BaseModel):
+
+class FunDefModel(BaseModel):
     name: str
     description: str
     parameters: dict[str, ParametersModel]
     returns: ParametersModel
 
+
 class PromptModel(BaseModel):
     prompt: str
 
-def parser() -> tuple[str, list] | None:
+
+def parser(diffile: str, promfile: str) -> tuple[Any, str, list[Any]]:
     try:
-        with open("data/input/functions_definition.json") as f:
+        with open(diffile) as f:
             try:
                 data_loaded: Any = json.load(f)
                 function: str = ""
-                if isinstance(data_loaded, list) == False:
-                    data: list = [data_loaded]
+                data: list = []
+                if isinstance(data_loaded, list) is False:
+                    data = [data_loaded]
                 else:
-                    data: list = data_loaded
+                    data = data_loaded
                 for item in data:
-                    parm = ""
+                    parm: str = ""
                     for k, v in item["parameters"].items():
-                        parm += f"{k}:{v["type"]} "
-                    parser = FunDefModel(**item)
-                    function += f"name: {str(item["name"])}, description: {str(item["description"])}, parameters and type: {parm}" + "\n"
-            except (JSONDecodeError ) as e:
-                print(f"json forma not valide in 'functions_definition.json': {e}")
-                return None
+                        value = v["type"]
+                        parm += f'{k}:{value} '
+                    FunDefModel(**item)
+                    name = item["name"]
+                    desc = item["description"]
+                    function += f"[name: {str(name)},"
+                    function += f" description: {str(desc)}, "
+                    function += f"parameters: {parm}]" + "\n"
+            except (JSONDecodeError) as e:
+                print("json forma not valide in "
+                      f"'functions_definition.json': {e}")
+                exit(1)
             except ValidationError as e:
-                print(f"Json schema not valide in 'functions_definition.json': {e}")
-                return None
+                print("Json schema not valide in"
+                      f" 'functions_definition.json': {e}")
+                exit(1)
 
-        with open("data/input/function_calling_tests.json") as f:
+        with open(promfile) as f:
             try:
                 data = json.load(f)
-                if isinstance(data, list) == False:
+                if isinstance(data, list) is False:
                     data = [data]
 
                 for item in data:
-                    prompt = PromptModel(**item)
+                    PromptModel(**item)
 
-            except (JSONDecodeError ) as e:
-                    print(f"json forma not valide in 'function_calling_tests.json': {e}")
-                    return None
+            except (JSONDecodeError) as e:
+                print("json forma not valide in"
+                      f" 'function_calling_tests.json': {e}")
+                exit(1)
             except ValidationError as e:
-                print(f"Json schema not valide in 'function_calling_tests.json': {e}")
-                return None
+                print(f"Json schema not valide in "
+                      f"'function_calling_tests.json': {e}")
+                exit(1)
     except (FileNotFoundError, PermissionError) as e:
         print(f"Error: {e}")
-        return None
-    return (data_loaded, function,data)
-parser()
+        exit(1)
+    return (data_loaded, function, data)

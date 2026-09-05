@@ -1,15 +1,21 @@
 install:
-	uv add ./llm_sdk 
+	uv add -r requirements.txt
+	uv sync 
 
 run:
 	clear
-	time uv run python -m src
+	uv run python -m src
 
 debug:
+	uv run python -m pdb -m src
 
 clean:
+	uv cache clean
 	rm -rf data/output
+	find . | grep -E "(__pycache__|\.pyc|\.pyo)" | xargs rm -rf
+	find . | grep -E "(.venv)" | xargs rm -rf
+	find . | grep -E "(.mypy_cache)" | xargs rm -rf
 
 lint:
-
-lint-strict:
+	flake8 src/.
+	mypy src/. --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs

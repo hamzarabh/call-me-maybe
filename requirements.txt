@@ -1,1 +1,3 @@
 pydantic
+./llm_sdk
+numpy
