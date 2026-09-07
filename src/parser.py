@@ -32,10 +32,10 @@ def parser(diffile: str, promfile: str) -> tuple[Any, str, list[Any]]:
                     data = data_loaded
                 for item in data:
                     parm: str = ""
+                    FunDefModel(**item)
                     for k, v in item["parameters"].items():
                         value = v["type"]
                         parm += f'{k}:{value} '
-                    FunDefModel(**item)
                     name = item["name"]
                     desc = item["description"]
                     function += f"[name: {str(name)},"
@@ -43,11 +43,11 @@ def parser(diffile: str, promfile: str) -> tuple[Any, str, list[Any]]:
                     function += f"parameters: {parm}]" + "\n"
             except (JSONDecodeError) as e:
                 print("json forma not valide in "
-                      f"'functions_definition.json': {e}")
+                      f"{diffile}: {e}")
                 exit(1)
             except ValidationError as e:
                 print("Json schema not valide in"
-                      f" 'functions_definition.json': {e}")
+                      f" {promfile}: {e}")
                 exit(1)
 
         with open(promfile) as f:
@@ -61,11 +61,11 @@ def parser(diffile: str, promfile: str) -> tuple[Any, str, list[Any]]:
 
             except (JSONDecodeError) as e:
                 print("json forma not valide in"
-                      f" 'function_calling_tests.json': {e}")
+                      f" {diffile}: {e}")
                 exit(1)
             except ValidationError as e:
                 print(f"Json schema not valide in "
-                      f"'function_calling_tests.json': {e}")
+                      f"{promfile}: {e}")
                 exit(1)
     except (FileNotFoundError, PermissionError) as e:
         print(f"Error: {e}")

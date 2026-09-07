@@ -165,7 +165,7 @@ class JsonFsm():
                     new_token = smart_decode(tuple([next_id]))
                     for c in new_token:
                         tok += c
-                        if c == '"' and textJson[-2] != "\\":
+                        if c == '"' and tok[-2] != "\\":
                             break
                     if tok[-1] == '"' and not tok.rstrip().endswith('\\"'):
                         textJson += tok.strip()
@@ -188,7 +188,8 @@ class JsonFsm():
 
             if (i < len(parameters.items()) - 1
                     and (not textJson.rstrip().endswith(','))):
-                tok, list_data = self.gen_next_token(list_data, self.e_coma.root)
+                tok, list_data = self.gen_next_token(list_data,
+                                                     self.e_coma.root)
                 textJson += tok
         new_token, list_data = self.gen_next_token(list_data, self.e_end.root)
         textJson += new_token
@@ -276,6 +277,7 @@ input:"""
             parents=True, exist_ok=True)
     with open(args.output, 'w') as f:
         json.dump(output_list, f, indent=2)
+
 
 if __name__ == "__main__":
     main()
