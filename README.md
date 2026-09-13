@@ -33,6 +33,8 @@ FSM => https://www.youtube.com/watch?v=E45v2dD3IQU
 Constrained Decoding => https://medium.com/@albersj66/part-6-implementing-constrained-decoding-for-phi-3-vision-2c72a1be6a17
 
 Function calling => https://developers.openai.com/api/docs/guides/function-calling?api-mode=responses
+
+Byte-Pair Encoding (BPE) => https://towardsdatascience.com/byte-pair-encoding-for-beginners-708d4472c0c7/
 ## Algorithm:
 To implement Constrained Decoding, I use a Finite State Machine (FSM) to control the token generation process.
 At each satate, the FSM determines which tokens are allowed. The LLM then selects the token with the highest logit among the allowed tokens. After generating a token, the FSM transitions to the corresponding next state.

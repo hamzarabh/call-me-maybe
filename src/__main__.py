@@ -1,4 +1,4 @@
-from llm_sdk import Small_LLM_Model
+from smart_llm import Smart_LLM
 import json
 from json import JSONDecodeError
 import numpy as np
@@ -10,7 +10,7 @@ from functools import lru_cache
 import argparse
 from typing import Any
 
-llm: Small_LLM_Model = Small_LLM_Model()
+llm: Smart_LLM = Smart_LLM()
 
 
 def check_json(text: str) -> Any | None:
@@ -40,16 +40,16 @@ class Tree():
         node.is_end = True
 
 
-@lru_cache(maxsize=None)
-def smart_decode(ids: tuple) -> str:
-    text: str = llm.decode(list(ids))
-    return text
+# @lru_cache(maxsize=None)
+# def smart_decode(ids: tuple) -> str:
+#     text: str = llm.ft_decode(list(ids))
+#     return text
 
 
-@lru_cache(maxsize=None)
-def smart_encode(prompt: str) -> tuple:
-    res: Any = llm.encode(prompt)
-    return tuple(res.tolist()[0])
+# @lru_cache(maxsize=None)
+# def smart_encode(prompt: str) -> tuple:
+#     res: Any = llm.ft_encode(prompt)
+#     return tuple(res.tolist()[0])
 
 
 class JsonFsm():
@@ -93,7 +93,7 @@ class JsonFsm():
         self.e_end.insert(self.get_ids("}"))
 
     def get_ids(self, tokens: str) -> list:
-        ids_tokens: tuple = smart_encode(tokens)
+        ids_tokens: tuple = llm.ft_encode(tokens)
         return list(ids_tokens)
 
     def get_tokens(self, state: int) -> tuple[int, Any]:
@@ -133,7 +133,7 @@ class JsonFsm():
                                        dtype=np.int64)
             next_id: int = allowed[np.argmax(np_logits[allowed])]
             list_data.append(next_id)
-            text += smart_decode(tuple([next_id]))
+            text += llm.ft_decode(tuple([next_id]))
             current_node = current_node.children[next_id]
         return (text, list_data)
 
@@ -162,7 +162,7 @@ class JsonFsm():
                     logits = llm.get_logits_from_input_ids(list_data)
                     np_logits = np.array(logits)
                     next_id = np.argmax(np_logits).item()
-                    new_token = smart_decode(tuple([next_id]))
+                    new_token = llm.ft_decode(tuple([next_id]))
                     for c in new_token:
                         tok += c
                         if c == '"' and tok[-2] != "\\":
@@ -180,7 +180,7 @@ class JsonFsm():
                     logits = llm.get_logits_from_input_ids(list_data)
                     np_logits = np.array(logits)
                     next_id = np.argmax(np_logits).item()
-                    new_token = smart_decode(tuple([next_id]))
+                    new_token = llm.ft_decode(tuple([next_id]))
                     if ',' in new_token or '}' in new_token:
                         break
                     list_data.append(next_id)
@@ -218,9 +218,9 @@ class JsonFsm():
 def generate_json(prompt: dict, li: list, difination: dict) -> dict | None:
     user_prompt: str = f"""{prompt["prompt"]}
 Output:"""
-    tensor_data = list(smart_encode(user_prompt))
+    data_ids = list(llm.ft_encode(user_prompt))
     list_data = li.copy()
-    list_data.extend(tensor_data)
+    list_data.extend(data_ids)
     fsm = JsonFsm(difination, prompt["prompt"])
     fsm.init_allowed_tokens()
     json = fsm.generatore(list_data=list_data)
@@ -261,7 +261,7 @@ def main() -> None:
     {functions_dif}
 input:"""
     total_worker: int = 1
-    list_ids: list = list(smart_encode(sys_prompt))
+    list_ids: list = list(llm.ft_encode(sys_prompt))
     cpu_count = os.cpu_count()
     if cpu_count is not None and cpu_count > 4:
         total_worker = cpu_count - 4
