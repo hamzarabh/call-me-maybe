@@ -9,232 +9,34 @@ import os
 from functools import lru_cache
 import argparse
 from typing import Any
+import multiprocessing as mp
+from multiprocessing import Pipe
 
-llm: Smart_LLM = Smart_LLM()
-
-
-def check_json(text: str) -> Any | None:
-    try:
-        j = json.loads(text)
-        return (j)
-    except JSONDecodeError:
-        return None
+from worker import worker_server, ft_worker
+# llm: Smart_LLM = None
 
 
-class Node():
-    def __init__(self) -> None:
-        self.children: dict = {}
-        self.is_end: bool = False
 
 
-class Tree():
-    def __init__(self) -> None:
-        self.root: Any = Node()
-
-    def insert(self, tokens: list[int]) -> None:
-        node = self.root
-        for id in tokens:
-            if id not in node.children:
-                node.children[id] = Node()
-            node = node.children[id]
-        node.is_end = True
 
 
-# @lru_cache(maxsize=None)
-# def smart_decode(ids: tuple) -> str:
-#     text: str = llm.ft_decode(list(ids))
-#     return text
 
 
-# @lru_cache(maxsize=None)
-# def smart_encode(prompt: str) -> tuple:
-#     res: Any = llm.ft_encode(prompt)
-#     return tuple(res.tolist()[0])
-
-
-class JsonFsm():
-    def __init__(self, difination: dict, prompt: str) -> None:
-        self.jsondif: dict = difination
-        self.prompt: str = prompt
-        self.e_start: Tree = Tree()
-        self.e_key_prompt: Tree = Tree()
-        self.e_key_name: Tree = Tree()
-        self.e_key_param: Tree = Tree()
-        self.e_param_keys: Tree = Tree()
-        self.e_colon: Tree = Tree()
-        self.e_value_names: Tree = Tree()
-        self.e_value_promt: Tree = Tree()
-        self.e_value_param: Tree = Tree()
-        self.e_coma: Tree = Tree()
-        self.e_end: Tree = Tree()
-
-    def init_allowed_tokens(self) -> None:
-        self.e_start.insert(self.get_ids("{"))
-        parame_tokens = [list(key["parameters"].keys())
-                         for key in self.jsondif]
-        paratokens = [
-            '"'+k+'"' for sublist in parame_tokens for k in sublist]
-        tokens = ['"prompt"', '"name"', '"parameters"']
-        for pt in paratokens:
-            self.e_param_keys.insert(self.get_ids(pt))
-
-        self.e_key_prompt.insert(self.get_ids(tokens[0]))
-        self.e_key_name.insert(self.get_ids(tokens[1]))
-        self.e_key_param.insert(self.get_ids(tokens[2]))
-
-        self.e_colon.insert(self.get_ids(":"))
-        for func in self.jsondif:
-            name = func['name']
-            self.e_value_names.insert(self.get_ids(f'"{name}"'))
-        self.e_value_promt.insert(self.get_ids(json.dumps(self.prompt)))
-        self.e_value_param.insert(self.get_ids("{"))
-
-        self.e_coma.insert(self.get_ids(","))
-        self.e_end.insert(self.get_ids("}"))
-
-    def get_ids(self, tokens: str) -> list:
-        ids_tokens: tuple = llm.ft_encode(tokens)
-        return list(ids_tokens)
-
-    def get_tokens(self, state: int) -> tuple[int, Any]:
-        if state == 1:
-            return (2, self.e_start.root)
-        if state == 2:
-            return (3, self.e_key_prompt.root)
-        if state == 3:
-            return (4, self.e_colon.root)
-        if state == 4:
-            return (5, self.e_value_promt.root)
-        if state == 5:
-            return (6, self.e_coma.root)
-        if state == 6:
-            return (7, self.e_key_name.root)
-        if state == 7:
-            return (8, self.e_colon.root)
-        if state == 8:
-            return (9, self.e_value_names.root)
-        if state == 9:
-            return (10, self.e_coma.root)
-        if state == 10:
-            return (11, self.e_key_param.root)
-        if state == 11:
-            return (12, self.e_colon.root)
-        if state == 12:
-            return (0, self.e_start.root)
-        else:
-            return (0, None)
-
-    def gen_next_token(self, list_data: list, current_node: Node) -> tuple:
-        text: str = ""
-        while current_node.is_end is False:
-            logits: Any = llm.get_logits_from_input_ids(list_data)
-            np_logits: Any = np.array(logits)
-            allowed: Any = np.fromiter(current_node.children.keys(),
-                                       dtype=np.int64)
-            next_id: int = allowed[np.argmax(np_logits[allowed])]
-            list_data.append(next_id)
-            text += llm.ft_decode(tuple([next_id]))
-            current_node = current_node.children[next_id]
-        return (text, list_data)
-
-    def gen_param(self, list_data: list, name: str, textJson: str) -> str:
-        new_token = ""
-        parameters = dict()
-
-        for obj in self.jsondif:
-            if '"'+obj["name"]+'"' == name:
-                parameters = obj["parameters"]
-        for i, (k, v) in enumerate(parameters.items()):
-            tree_k = Tree()
-            tree_k.insert(self.get_ids(f'"{k}"'))
-            tok, list_data = self.gen_next_token(list_data, tree_k.root)
-            textJson += tok
-            tok, list_data = self.gen_next_token(list_data, self.e_colon.root)
-            textJson += tok
-
-            if v["type"] == "string":
-                tree_cot = Tree()
-                tree_cot.insert(self.get_ids('"'))
-                tok, list_data = self.gen_next_token(list_data, tree_cot.root)
-                textJson += tok
-                tok = ""
-                for _ in range(100):
-                    logits = llm.get_logits_from_input_ids(list_data)
-                    np_logits = np.array(logits)
-                    next_id = np.argmax(np_logits).item()
-                    new_token = llm.ft_decode(tuple([next_id]))
-                    for c in new_token:
-                        tok += c
-                        if c == '"' and tok[-2] != "\\":
-                            break
-                    if tok[-1] == '"' and not tok.rstrip().endswith('\\"'):
-                        textJson += tok.strip()
-                        list_data.append(next_id)
-                        break
-                    list_data.append(next_id)
-
-                    textJson = textJson.replace('\" \"', '\"')
-                    textJson = textJson.replace('\\" \\"', '\\"\\"')
-            else:
-                for _ in range(100):
-                    logits = llm.get_logits_from_input_ids(list_data)
-                    np_logits = np.array(logits)
-                    next_id = np.argmax(np_logits).item()
-                    new_token = llm.ft_decode(tuple([next_id]))
-                    if ',' in new_token or '}' in new_token:
-                        break
-                    list_data.append(next_id)
-                    textJson += new_token
-
-            if (i < len(parameters.items()) - 1
-                    and (not textJson.rstrip().endswith(','))):
-                tok, list_data = self.gen_next_token(list_data,
-                                                     self.e_coma.root)
-                textJson += tok
-        new_token, list_data = self.gen_next_token(list_data, self.e_end.root)
-        textJson += new_token
-        textJson = textJson.replace('\" \"', '\"')
-        textJson = textJson.replace('\\" \\"', '\\"\\"')
-        return textJson
-
-    def generatore(self, list_data: list) -> dict | None:
-        json: str = ""
-        state: int = 1
-        name: str = ""
-        while state:
-            state, tokens_tree = self.get_tokens(state)
-            text, list_data = self.gen_next_token(list_data, tokens_tree)
-            if state == 9:
-                name = text
-            json += text
-        json = self.gen_param(list_data, name, json)
-        if not json.strip().endswith("}}"):
-            text, list_data = self.gen_next_token(list_data, self.e_end.root)
-            json += text
-
-        return check_json(json)
-
-
-def generate_json(prompt: dict, li: list, difination: dict) -> dict | None:
-    user_prompt: str = f"""{prompt["prompt"]}
-Output:"""
-    data_ids = list(llm.ft_encode(user_prompt))
-    list_data = li.copy()
-    list_data.extend(data_ids)
-    fsm = JsonFsm(difination, prompt["prompt"])
-    fsm.init_allowed_tokens()
-    json = fsm.generatore(list_data=list_data)
-    if json is None:
-        return (None)
-    for k in difination:
-        if k["name"] == json["name"]:
-            for c, v in k["parameters"].items():
-                if v["type"] == "number":
-                    json["parameters"][c] = float(json["parameters"][c])
-    return json
 
 
 def main() -> None:
+    total_worker = 5
+    server_conns = []
+    worker_conns = []
+
+    for _ in range(total_worker):
+        s_conn, w_conn = mp.Pipe()
+        server_conns.append(s_conn)
+        worker_conns.append(w_conn)
+    s_conn , w_conn = Pipe()
+    server_conns.append(s_conn)
+    llm_server = mp.Process(target=worker_server, args=(server_conns,))
+    llm_server.start()
     pa = argparse.ArgumentParser()
     pa.add_argument('--functions_definition', type=str,
                     default="data/input/functions_definition.json")
@@ -260,16 +62,30 @@ def main() -> None:
     sys_prompt = f"""
     {functions_dif}
 input:"""
-    total_worker: int = 1
-    list_ids: list = list(llm.ft_encode(sys_prompt))
-    cpu_count = os.cpu_count()
-    if cpu_count is not None and cpu_count > 4:
-        total_worker = cpu_count - 4
 
-    with ThreadPoolExecutor(max_workers=total_worker) as worker:
-        result: Any = worker.map(lambda p: generate_json(
-            p, list_ids, fun_json), prompts)
+    w_conn.send({
+        "type": "encode",
+        "data": sys_prompt
+        })
+    list_ids: list = w_conn.recv()
+    print(list_ids)
+    # total_worker: int = 1
+    # cpu_count = os.cpu_count()
+    # if cpu_count is not None and cpu_count > 4:
+    #     total_worker = cpu_count - 4
 
+
+
+    tast_args = []
+    for i, p in enumerate(prompts):
+        tast_args.append((p, list_ids, fun_json, worker_conns[i % total_worker]))
+    with mp.Pool(processes=total_worker) as worker:
+        result: Any = worker.map(ft_worker, tast_args)
+    
+    w_conn.send(None)
+    print("jou1")
+    llm_server.join()
+    print("jou2")
     for res in result:
         output_list.append(res)
     if os.path.dirname(args.output) != "":
