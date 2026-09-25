@@ -140,12 +140,15 @@ class JsonFsm():
 
     def gen_next_token(self, list_data: list, current_node: Node) -> tuple:
         text: str = ""
+        if not current_node.children:
+            return ("", list_data)
         while current_node.is_end is False:
             logits: Any = self.request("logits",list_data)
             np_logits: Any = np.array(logits)
             allowed: Any = np.fromiter(current_node.children.keys(),
                                        dtype=np.int64)
-            next_id: int = allowed[np.argmax(np_logits[allowed])]
+            next_id: int = int(allowed[np.argmax(np_logits[allowed])])
+
             list_data.append(next_id)
 
             text += self.request("decode", tuple([next_id]))
@@ -222,7 +225,6 @@ class JsonFsm():
             if state == 9:
                 name = text
             json += text
-            print(json)
         json = self.gen_param(list_data, name, json)
         if not json.strip().endswith("}}"):
             text, list_data = self.gen_next_token(list_data, self.e_end.root)
@@ -231,7 +233,6 @@ class JsonFsm():
 
 
 def generate_json(prompt: dict, li: list, difination: dict, pipe) -> dict | None:
-    print("teees")
     user_prompt: str = f"""{prompt["prompt"]}
 Output:"""
 
@@ -239,15 +240,14 @@ Output:"""
         "type": "encode",
         "data": user_prompt
         })
-    print("gen send")
     data_ids = pipe.recv()
-    print("res")
-    print(data_ids)
     list_data = li.copy()
     list_data.extend(data_ids)
     fsm = JsonFsm(difination, prompt["prompt"], pipe)
     fsm.init_allowed_tokens()
     json = fsm.generatore(list_data=list_data)
+    print("=>(1) ",json)
+
     if json is None:
         return (None)
     for k in difination:
@@ -255,4 +255,5 @@ Output:"""
             for c, v in k["parameters"].items():
                 if v["type"] == "number":
                     json["parameters"][c] = float(json["parameters"][c])
+    print("=>(2) ",json)
     return json

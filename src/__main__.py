@@ -13,19 +13,12 @@ import multiprocessing as mp
 from multiprocessing import Pipe
 
 from worker import worker_server, ft_worker
-# llm: Smart_LLM = None
-
-
-
-
-
-
-
-
-
 
 def main() -> None:
-    total_worker = 5
+    fun_json, functions_dif, prompts = parser(args.functions_definition,
+                                              args.input)
+    mp.set_start_method("fork", force=True)
+    total_worker = len(prompts)
     server_conns = []
     worker_conns = []
 
@@ -56,8 +49,6 @@ def main() -> None:
         print("Error: Output file not json")
         exit(1)
 
-    fun_json, functions_dif, prompts = parser(args.functions_definition,
-                                              args.input)
     output_list = []
     sys_prompt = f"""
     {functions_dif}
@@ -68,7 +59,6 @@ input:"""
         "data": sys_prompt
         })
     list_ids: list = w_conn.recv()
-    print(list_ids)
     # total_worker: int = 1
     # cpu_count = os.cpu_count()
     # if cpu_count is not None and cpu_count > 4:
@@ -82,12 +72,18 @@ input:"""
     with mp.Pool(processes=total_worker) as worker:
         result: Any = worker.map(ft_worker, tast_args)
     
+
+    print("finish1")
     w_conn.send(None)
-    print("jou1")
+
+    print("finish2")
+
     llm_server.join()
-    print("jou2")
+    print("finish3")
+
     for res in result:
         output_list.append(res)
+    print("finish4")
     if os.path.dirname(args.output) != "":
         pathlib.Path(os.path.dirname(args.output)).mkdir(
             parents=True, exist_ok=True)
