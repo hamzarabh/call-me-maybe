@@ -6,7 +6,6 @@ from parser import parser
 from concurrent.futures import ThreadPoolExecutor
 import pathlib
 import os
-from functools import lru_cache
 import argparse
 from typing import Any
 
